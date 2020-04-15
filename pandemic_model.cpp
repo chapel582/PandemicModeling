@@ -273,7 +273,7 @@ int main()
 
 	// NOTE: Other arguments
 	uint32_t SimulationDays = 100;
-	int MaxThreads = 1;
+	int MaxThreads = 4;
 
 	// NOTE: Susceptible and Infected need updates
 	// NOTE: currently People mem block is never freed 
@@ -302,12 +302,15 @@ int main()
 	set_next_state_data* ArgsArray = (set_next_state_data*) malloc(
 		MaxThreads * sizeof(set_next_state_data)
 	);
-
 	HANDLE TotalsMutex = CreateMutexA(
 		NULL, // NOTE: no need to inherit mutexes
 		FALSE, // NOTE: whether we take initial ownership
 		NULL // NOTE: name of mutex
 	);
+	uint64_t ThreadDivision = (uint64_t) (
+		(float) OriginalPop / (float) MaxThreads
+	);
+
 	LARGE_INTEGER Start = GetWallClock();
 	for(uint32_t Day = 0; Day < SimulationDays; Day++)
 	{
@@ -333,6 +336,7 @@ int main()
 			Person->DaysInState++;
 		}
 
+		uint64_t LastEndAt;
 		for(int ThreadIndex = 0; ThreadIndex < MaxThreads; ThreadIndex++)
 		{
 			set_next_state_data* Args = &ArgsArray[ThreadIndex];
@@ -341,8 +345,16 @@ int main()
 			Args->MaxEncounterRate = MaxEncounterRate;
 			Args->DaysToRecover = DaysToRecover;
 			Args->People = People;
-			Args->StartAt = 0; // TODO: base me on ThreadIndex
-			Args->EndAt = OriginalPop; // TODO: base me on ThreadIndex
+			Args->StartAt = ThreadIndex * ThreadDivision; 
+			if(ThreadIndex == (MaxThreads - 1))
+			{
+				Args->EndAt = OriginalPop;
+			}
+			else
+			{
+				Args->EndAt = (ThreadIndex + 1) * ThreadDivision;
+			}
+			LastEndAt = Args->EndAt;
 			Args->OriginalPop = OriginalPop;
 			Args->TotalSusceptible = &TotalSusceptible;
 			Args->TotalInfected = &TotalInfected;
