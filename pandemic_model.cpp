@@ -116,7 +116,7 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 	uint64_t TotalInfected = 0;
 	uint64_t TotalRecovered = 0;
 	uint64_t TotalDead = 0;
-	srand(((int) time(NULL)) + GetCurrentThreadId());
+	srand(((int) time(NULL)) + (100 * GetCurrentThreadId()));
 	
 	// NOTE: allocate once per thread for speed
 	person** ToInfect = (person**) malloc(
