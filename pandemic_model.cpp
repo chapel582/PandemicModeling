@@ -11,7 +11,7 @@ What about essential workers? How many of them are there?
 
 /*
 Assumptions
-Infection rate is the same regardless of the # dead 
+Encounter rate is constant. Not a function of number who have died
 */
 
 #include <time.h>
@@ -94,10 +94,12 @@ int main()
 	GlobalPerformanceFrequency = PerformanceFrequency.QuadPart;
 
 	// NOTE: PARAMETERS
+	// TODO: add command line arguments
 	// NOTE: the average number of people encountered by a person each day in 
 	// NOTE: a way that would tranfer the virus. 
 	// NOTE: fractional means that there's a chance the person doesn't get it
 	float EncounterRate = 0.25;
+	int MaxEncounterRate = 10;
 	// NOTE: the average time in days to recover
 	int DaysToRecover = 14;
 	// NOTE: how many of the infected die 
@@ -113,6 +115,9 @@ int main()
 	uint64_t OriginalPop = SusceptiblePop + InfectedPop + RecoveredPop;
 
 	// NOTE: Susceptible and Infected need updates
+	// NOTE: currently People mem block is never freed 
+	// NOTE: this is an OK assumption since it's basically used until the death 
+	// NOTE: of the program
 	person* People = (person*) malloc(OriginalPop * sizeof(person));
 	uint64_t PersonIndex;
 	for(PersonIndex = 0; PersonIndex < SusceptiblePop; PersonIndex++)
@@ -148,6 +153,7 @@ int main()
 		{
 			if(Person->State != Person->NextState)
 			{
+				// TODO: track new cases here
 				Person->State = Person->NextState;
 				Person->NextState = Person->State;
 				Person->DaysInState = 0;	
@@ -155,6 +161,10 @@ int main()
 			Person->DaysInState++;
 		}
 
+		// NOTE: allocate once per thread for speed
+		person** ToInfect = (person**) malloc(
+			MaxEncounterRate * sizeof(person*)
+		);
 		for(
 			person* Person = &People[0];
 			Person < &People[OriginalPop];
@@ -186,11 +196,7 @@ int main()
 					Person->NextState = State_Infected;
 
 					// NOTE: need to see how many people this person infected
-					int EncounterRateInt = (int) EncounterRate;
-					int ToInfectCount = EncounterRateInt + 1;
-					person** ToInfect = (person**) malloc(
-						ToInfectCount * sizeof(person*)
-					);
+					int EncounterRateInt = (int) Person->EncounterRate;
 						
 					int LivingFound = 0;
 					while(LivingFound < EncounterRateInt)
@@ -256,7 +262,6 @@ int main()
 							PersonToInfect->NextState = State_Infected;							
 						}
 					}
-					free(ToInfect);
 				}
 			}
 			else if(Person->State == State_Recovered)
@@ -269,6 +274,7 @@ int main()
 			}
 		}
 
+		free(ToInfect);
 		printf(
 			"%u, %llu, %llu, %llu, %llu\n",
 			Day + 1,
@@ -285,15 +291,3 @@ int main()
 	float SecondsElapsed = GetSecondsElapsed(Start, End);
 	printf("Time to run %f\n", SecondsElapsed);
 }
-
-/*
-start = time.time()
-
-
-	// TODO: store these for plotting
-	print(
-		day + 1, TotalSusceptible, TotalInfected, TotalRecovered, TotalDead
-	)
-
-total_time = time.time() - start
-print(total_time)*/
