@@ -16,6 +16,7 @@ Encounter rate is constant. Not a function of number who have died
 
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <windows.h>
 
@@ -40,7 +41,7 @@ inline float GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End)
 }
 
 // NOTE: need randoms > RAND_MAX
-inline uint64_t Rand(uint64_t Mod)
+uint64_t Rand(uint64_t Mod)
 {
 	uint64_t Result = (
 		(((uint64_t) (rand() % 0xFF)) << 56) |
@@ -56,7 +57,7 @@ inline uint64_t Rand(uint64_t Mod)
 }
 
 // NOTE: need randoms 0.0 < 1.0 
-inline float RandUnity()
+float RandUnity()
 {
 	return ((float) (rand() % RAND_MAX)) / ((float) RAND_MAX);
 }
@@ -85,10 +86,167 @@ void InitPerson(person* Person, state State, float EncounterRate)
 	Person->DaysInState = 0; // NOTE: only tracked for IR states
 }
 
+typedef struct set_next_state_data
+{
+	float DeathRate;
+	HANDLE TotalsMutex;
+	int MaxEncounterRate;
+	int DaysToRecover;
+	person* People;
+	uint64_t StartAt;
+	uint64_t EndAt;
+	uint64_t OriginalPop;
+	uint64_t* TotalSusceptible;
+	uint64_t* TotalInfected;
+	uint64_t* TotalRecovered;
+	uint64_t* TotalDead;
+} set_next_state_data;
+
+DWORD WINAPI SetNextState(LPVOID LpParameter)
+{
+	set_next_state_data* Args = (set_next_state_data*) LpParameter;
+	float DeathRate = Args->DeathRate;
+	int MaxEncounterRate = Args->MaxEncounterRate;
+	int DaysToRecover = Args->DaysToRecover;
+	person* People = Args->People;
+	uint64_t StartAt = Args->StartAt;
+	uint64_t EndAt = Args->EndAt;
+	uint64_t OriginalPop = Args->OriginalPop;
+	uint64_t TotalSusceptible = 0;
+	uint64_t TotalInfected = 0;
+	uint64_t TotalRecovered = 0;
+	uint64_t TotalDead = 0;
+	srand(((int) time(NULL)) + GetCurrentThreadId());
+	
+	// NOTE: allocate once per thread for speed
+	person** ToInfect = (person**) malloc(
+		MaxEncounterRate * sizeof(person*)
+	);
+
+	// NOTE: There may be some concern over race conditions here.
+	// CONT: There shouldn't be any. We only modify next state of susceptibles
+	// CONT: so there isn't a case where someone was goigng to recover and is 
+	// CONT: then reinfected. 
+	for(
+		person* Person = &People[StartAt];
+		Person < &People[EndAt];
+		Person++
+	)
+	{
+		if(Person->State == State_Susceptible)
+		{
+			TotalSusceptible++;
+		}
+		else if(Person->State == State_Infected)
+		{
+			TotalInfected++;
+
+			if(Person->DaysInState > DaysToRecover)
+			{
+				float Value = RandUnity();
+				if(Value < DeathRate)
+				{
+					Person->NextState = State_Dead;
+				}
+				else
+				{
+					Person->NextState = State_Recovered;
+				}
+			}
+			else
+			{
+				// NOTE: need to see how many people this person infected
+				int EncounterRateInt = (int) Person->EncounterRate;
+					
+				int LivingFound = 0;
+				while(LivingFound < EncounterRateInt)
+				{
+					// TODO: consider if having the living in a linked list could help lookups like this go faster
+
+					// TODO: factor out finding a non-dead, unrecovered person
+					uint64_t RandomIndex = Rand(OriginalPop);
+					person* RandomPerson = &People[RandomIndex];
+
+					// NOTE: Make sure we found a living person
+					if(RandomPerson->State != State_Dead)
+					{
+						ToInfect[LivingFound++] = RandomPerson;
+					}
+				}
+
+				float EncounterRateFractional = (
+					(float) Person->EncounterRate - (float) EncounterRateInt
+				);
+				float Value = RandUnity();
+				if(Value < EncounterRateFractional)
+				{
+					person* RandomPerson;
+					bool RandomAlreadyPicked = false;
+					do
+					{
+						uint64_t RandomIndex = Rand(OriginalPop);
+						RandomPerson = &People[RandomIndex];
+						
+						// NOTE: Make sure we found a living, unrecovered person
+						if(RandomPerson->State == State_Dead)
+						{
+							continue;
+						}
+
+						// NOTE: need to check that we haven't already picked this person
+						for(
+							int CheckIndex = 0;
+							CheckIndex < LivingFound;
+							CheckIndex++
+						)
+						{
+							if(ToInfect[CheckIndex] == RandomPerson)
+							{
+								RandomAlreadyPicked = TRUE;
+								break;
+							}
+						}
+					} while(RandomAlreadyPicked);
+					ToInfect[LivingFound++] = RandomPerson;
+				}
+
+				for(
+					int ToInfectIndex = 0;
+					ToInfectIndex < LivingFound;
+					ToInfectIndex++
+				)
+				{
+					person* PersonToInfect = ToInfect[ToInfectIndex];
+					if(PersonToInfect->State == State_Susceptible)
+					{
+						PersonToInfect->NextState = State_Infected;							
+					}
+				}
+			}
+		}
+		else if(Person->State == State_Recovered)
+		{
+			TotalRecovered++;
+		}
+		else if(Person->State == State_Dead)
+		{
+			TotalDead++;
+		}
+	}
+
+	free(ToInfect);
+
+	WaitForSingleObject(Args->TotalsMutex, INFINITE);
+	*Args->TotalSusceptible += TotalSusceptible;
+	*Args->TotalInfected += TotalInfected;
+	*Args->TotalRecovered += TotalRecovered;
+	*Args->TotalDead += TotalDead;
+	ReleaseMutex(Args->TotalsMutex);
+	return 0;
+}
+
 int main()
 {
-	srand((int) time(NULL));
-
 	LARGE_INTEGER PerformanceFrequency;
 	QueryPerformanceFrequency(&PerformanceFrequency);
 	GlobalPerformanceFrequency = PerformanceFrequency.QuadPart;
@@ -107,12 +265,15 @@ int main()
 	// TODO: give an option for making the death rate a function of hospital capacity
 	// TOOD: give an option for people becoming reinfected (maybe after a certain amount of time) 
 
-	uint32_t SimulationDays = 100;
 	// NOTE: initial conditions
 	uint64_t SusceptiblePop = 999999;
 	uint64_t InfectedPop = 1;
 	uint64_t RecoveredPop = 0;
 	uint64_t OriginalPop = SusceptiblePop + InfectedPop + RecoveredPop;
+
+	// NOTE: Other arguments
+	uint32_t SimulationDays = 100;
+	int MaxThreads = 1;
 
 	// NOTE: Susceptible and Infected need updates
 	// NOTE: currently People mem block is never freed 
@@ -136,6 +297,17 @@ int main()
 		InitPerson(Person, State_Recovered, EncounterRate);	
 	}
 
+	// NOTE: These also never get deallocated. No need
+	HANDLE* ThreadHandles = (HANDLE*) malloc(MaxThreads * sizeof(HANDLE));
+	set_next_state_data* ArgsArray = (set_next_state_data*) malloc(
+		MaxThreads * sizeof(set_next_state_data)
+	);
+
+	HANDLE TotalsMutex = CreateMutexA(
+		NULL, // NOTE: no need to inherit mutexes
+		FALSE, // NOTE: whether we take initial ownership
+		NULL // NOTE: name of mutex
+	);
 	LARGE_INTEGER Start = GetWallClock();
 	for(uint32_t Day = 0; Day < SimulationDays; Day++)
 	{
@@ -161,120 +333,39 @@ int main()
 			Person->DaysInState++;
 		}
 
-		// NOTE: allocate once per thread for speed
-		person** ToInfect = (person**) malloc(
-			MaxEncounterRate * sizeof(person*)
-		);
-		for(
-			person* Person = &People[0];
-			Person < &People[OriginalPop];
-			Person++
-		)
+		for(int ThreadIndex = 0; ThreadIndex < MaxThreads; ThreadIndex++)
 		{
-			if(Person->State == State_Susceptible)
+			set_next_state_data* Args = &ArgsArray[ThreadIndex];
+			Args->DeathRate = DeathRate;
+			Args->TotalsMutex = TotalsMutex;
+			Args->MaxEncounterRate = MaxEncounterRate;
+			Args->DaysToRecover = DaysToRecover;
+			Args->People = People;
+			Args->StartAt = 0; // TODO: base me on ThreadIndex
+			Args->EndAt = OriginalPop; // TODO: base me on ThreadIndex
+			Args->OriginalPop = OriginalPop;
+			Args->TotalSusceptible = &TotalSusceptible;
+			Args->TotalInfected = &TotalInfected;
+			Args->TotalRecovered = &TotalRecovered;
+			Args->TotalDead = &TotalDead;
+
+			DWORD ThreadId;
+			ThreadHandles[ThreadIndex] = CreateThread( 
+				NULL, // default security attributes
+				0, // use default stack size  
+				SetNextState, // thread function name
+				Args, // argument to thread function 
+				0, // use default creation flags 
+				&ThreadId // returns the thread identifier
+			);
+			if(ThreadHandles[ThreadIndex] == NULL)
 			{
-				TotalSusceptible++;
-			}
-			else if(Person->State == State_Infected)
-			{
-				TotalInfected++;
-
-				if(Person->DaysInState > DaysToRecover)
-				{
-					float Value = RandUnity();
-					if(Value < DeathRate)
-					{
-						Person->NextState = State_Dead;
-					}
-					else
-					{
-						Person->NextState = State_Recovered;
-					}
-				}
-				else
-				{
-					Person->NextState = State_Infected;
-
-					// NOTE: need to see how many people this person infected
-					int EncounterRateInt = (int) Person->EncounterRate;
-						
-					int LivingFound = 0;
-					while(LivingFound < EncounterRateInt)
-					{
-						// TODO: consider if having the living in a linked list could help lookups like this go faster
-
-						// TODO: factor out finding a non-dead, unrecovered person
-						uint64_t RandomIndex = Rand(OriginalPop);
-						person* RandomPerson = &People[RandomIndex];
-
-						// NOTE: Make sure we found a living person
-						if(RandomPerson->State != State_Dead)
-						{
-							ToInfect[LivingFound++] = RandomPerson;
-						}
-					}
-
-					float EncounterRateFractional = (
-						(float) EncounterRate - (float) EncounterRateInt
-					);
-					float Value = RandUnity();
-					if(Value < EncounterRateFractional)
-					{
-						person* RandomPerson;
-						bool RandomAlreadyPicked = false;
-						do
-						{
-							uint64_t RandomIndex = Rand(OriginalPop);
-							RandomPerson = &People[RandomIndex];
-							
-							// NOTE: Make sure we found a living, unrecovered person
-							if(RandomPerson->State == State_Dead)
-							{
-								continue;
-							}
-
-							// NOTE: need to check that we haven't already picked this person
-							for(
-								int CheckIndex = 0;
-								CheckIndex < LivingFound;
-								CheckIndex++
-							)
-							{
-								if(ToInfect[CheckIndex] == RandomPerson)
-								{
-									RandomAlreadyPicked = true;
-									break;
-								}
-							}
-						} while(RandomAlreadyPicked);
-						ToInfect[LivingFound++] = RandomPerson;
-					}
-
-					for(
-						int ToInfectIndex = 0;
-						ToInfectIndex < LivingFound;
-						ToInfectIndex++
-					)
-					{
-						person* PersonToInfect = ToInfect[ToInfectIndex];
-						if(PersonToInfect->State == State_Susceptible)
-						{
-							PersonToInfect->NextState = State_Infected;							
-						}
-					}
-				}
-			}
-			else if(Person->State == State_Recovered)
-			{
-				TotalRecovered++;
-			}
-			else if(Person->State == State_Dead)
-			{
-				TotalDead++;
+				printf("Unable to create thread %d", ThreadIndex);
+				return 1;
 			}
 		}
+		WaitForMultipleObjects(MaxThreads, ThreadHandles, TRUE, INFINITE);
 
-		free(ToInfect);
 		printf(
 			"%u, %llu, %llu, %llu, %llu\n",
 			Day + 1,
@@ -290,4 +381,6 @@ int main()
 
 	float SecondsElapsed = GetSecondsElapsed(Start, End);
 	printf("Time to run %f\n", SecondsElapsed);
+
+	return 0;
 }
