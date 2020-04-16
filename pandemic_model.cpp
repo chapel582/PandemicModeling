@@ -332,10 +332,11 @@ int main(
 	uint32_t SimulationDays = 365;
 	// NOTE: The # of days you keep your immunity
 	// NOTE: By default, it's "infinite" by eing SimulationDays + 1
-	int DaysImmune = SimulationDays + 1;
+	int DaysImmune = -1;
 	int MaxThreads = 4;
 
 	// NOTE: handle command line arguments
+	bool SetDaysImmune = FALSE;
 	for(int ArgumentIndex = 0; ArgumentIndex < Argc; ArgumentIndex++)
 	{		
 		if(
@@ -407,6 +408,7 @@ int main(
 			) == 0
 		)
 		{
+			SetDaysImmune = TRUE;
 		}
 		else if(
 			ParseArg(
@@ -456,7 +458,15 @@ int main(
 	}
 	// NOTE: updated OrginalPop once we have all the args set
 	uint64_t OriginalPop = SusceptiblePop + InfectedPop + RecoveredPop;
-
+	if(!SetDaysImmune)
+	{
+		DaysImmune = SimulationDays + 1;
+	}
+	if(DaysImmune < 0)
+	{
+		printf("DaysImmune is somehow less than 0\n");
+		return 1;
+	}
 	
 	// NOTE: Susceptible and Infected need updates
 	// NOTE: currently People mem block is never freed 
