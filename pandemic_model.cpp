@@ -327,6 +327,7 @@ int main(
 	uint64_t SusceptiblePop = 999999;
 	uint64_t InfectedPop = 1;
 	uint64_t RecoveredPop = 0;
+	uint64_t DeadPop = 0;
 
 	// NOTE: Other arguments
 	uint32_t SimulationDays = 365;
@@ -390,6 +391,13 @@ int main(
 		}
 		else if(
 			ParseArg(
+				"%llu", Argv, ArgumentIndex, "--dead", &DeadPop
+			) == 0
+		)
+		{
+		}
+		else if(
+			ParseArg(
 				"%u", Argv, ArgumentIndex, "--simdays", &SimulationDays
 			) == 0
 		)
@@ -440,6 +448,10 @@ int main(
 			printf("--recovered <recovered>\n");
 			printf(
 				"\tInt. Number of people immune to the disease. Default: 0\n"
+			);
+			printf("--dead <dead>\n");
+			printf(
+				"\tInt. Number of people dead due to the disease. Default: 0\n"
 			);
 			printf("--simdays <simdays>\n");
 			printf("\tInt. Number of days to simulate. Will terminate early if active infections hits 0. Default: 365\n");
@@ -586,6 +598,7 @@ int main(
 		}
 		WaitForMultipleObjects(MaxThreads, ThreadHandles, TRUE, INFINITE);
 
+		TotalDead += DeadPop;
 		printf(
 			"%u, %llu, %llu, %llu, %llu, %llu\n",
 			Day + 1,
