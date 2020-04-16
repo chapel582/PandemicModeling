@@ -6,6 +6,8 @@
 #include <windows.h>
 
 int64_t GlobalPerformanceFrequency;
+uint64_t GlobalInfectedCount;
+uint64_t GlobalVentilatorCount; 
 
 // NOTE: Performance inspection stuff
 inline LARGE_INTEGER GetWallClock(void)
@@ -95,7 +97,8 @@ void InitPerson(person* Person, state State)
 
 typedef struct set_next_state_data
 {
-	float DeathRate;
+	float BelowCapacityDeathRate;
+	float AboveCapacityDeathRate;
 	float EncounterRate;
 	HANDLE TotalsMutex;
 	int DaysSick;
@@ -113,7 +116,8 @@ typedef struct set_next_state_data
 DWORD WINAPI SetNextState(LPVOID LpParameter)
 {
 	set_next_state_data* Args = (set_next_state_data*) LpParameter;
-	float DeathRate = Args->DeathRate;
+	float BelowCapacityDeathRate = Args->BelowCapacityDeathRate;
+	float AboveCapacityDeathRate = Args->AboveCapacityDeathRate;
 	float EncounterRate = Args->EncounterRate;
 	int EncounterRateInt = (int) EncounterRate;
 	float EncounterRateFractional = (
@@ -157,6 +161,15 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 			if(Person->DaysInState > DaysSick)
 			{
 				float Value = RandUnity();
+				float DeathRate;
+				if(GlobalInfectedCount > GlobalVentilatorCount)
+				{
+					DeathRate = AboveCapacityDeathRate;
+				}
+				else
+				{
+					DeathRate = BelowCapacityDeathRate;
+				}
 				if(Value < DeathRate)
 				{
 					Person->NextState = State_Dead;
@@ -272,11 +285,17 @@ int main(
 	float EncounterRate = 0.25;
 	// NOTE: the average time in days to recover
 	int DaysSick = 14;
-	// NOTE: how many of the infected die 
+	// NOTE: how many of the infected die when ventilators are available
 	// NOTE: default based on S. Korea's COVID19 numbers as of April 15, 2020
 	// CONT: 225 / 10591
-	float DeathRate = 0.02f;
-	// TODO: give an option for making the death rate a function of hospital ventilator count
+	float BelowCapacityDeathRate = 0.02f;
+	// NOTE: how many of the infected die when ventilators aren't available
+	// NOTE: this is based on NY's data as of April 15, 2020
+	// NOTE: 213779 cases and 11586 deaths
+	float AboveCapacityDeathRate = 0.055f;
+	// NOTE: ventilator estimate based on # in the US https://www.washingtonpost.com/health/2020/03/13/coronavirus-numbers-we-really-should-be-worried-about/
+	GlobalVentilatorCount = 170000;
+	// NOTE: The percentage of people infected who need a ventilator
 
 	// NOTE: initial conditions
 	uint64_t SusceptiblePop = 999999;
@@ -310,7 +329,14 @@ int main(
 		}
 		else if(
 			ParseArg(
-				"%f", Argv, ArgumentIndex, "--death", &DeathRate
+				"%f", Argv, ArgumentIndex, "--death", &BelowCapacityDeathRate
+			) == 0
+		)
+		{
+		}
+		else if(
+			ParseArg(
+				"%f", Argv, ArgumentIndex, "--abovedeath", &AboveCapacityDeathRate
 			) == 0
 		)
 		{
@@ -357,28 +383,53 @@ int main(
 		)
 		{
 		}
+		else if(
+			ParseArg(
+				"%u",
+				Argv,
+				ArgumentIndex,
+				"--ventilators",
+				&GlobalVentilatorCount
+			) == 0
+		)
+		{
+		}
 		else if(strcmp(Argv[ArgumentIndex], "--help") == 0)
 		{
 			printf("--encounter <encounter>\n");
-			printf("\tFloat. The average number of people an infected person will infect each day. Default: 0.25\n");
+			printf(
+				"\tFloat. The average number of people an infected person will infect each day. Default: 0.25\n"
+			);
 			printf("--dayssick <dayssick>\n");
 			printf("\tInt. The number of days a person remains sick. Default: 14\n");
 			printf("--death <death>\n");
-			printf("\tFloat. The likelihood that someone dies from the illness. Default: 0.01\n");
+			printf("\tFloat. The likelihood that someone dies from the illness with access to ventilator Default: 0.02\n");
+			printf("--death <death>\n");
+			printf("\tFloat. The likelihood that someone dies from the illness without access to ventilator Default: 0.055\n");
 			printf("--susceptible <susceptible>\n");
 			printf("\tInt. Number of people not immune to the disease. Default 999999\n");
 			printf("--infected <infected>\n");
-			printf("\tInt. Number of people infected. Default: 1");
+			printf("\tInt. Number of people infected. Default: 1\n");
 			printf("--recovered <recovered>\n");
-			printf("\tInt. Number of people immune to the disease. Default: 0");
+			printf(
+				"\tInt. Number of people immune to the disease. Default: 0\n"
+			);
 			printf("--simdays <simdays>\n");
-			printf("\tInt. Number of days to simulate. Default: 365");
+			printf("\tInt. Number of days to simulate. Default: 365\n");
 			printf("--threads <threads>\n");
-			printf("\tInt. Number of threads to use. Default: 4");
+			printf("\tInt. Number of threads to use. Default: 4\n");
+			printf("--daysimmune <daysimmune>\n");
+			printf(
+				"\tInt. Number of days immunity lasts. Default: Equals <simdays>\n"
+			);
+			printf("--ventilators <ventilators>\n");
+			printf(
+				"\tInt. Number of ventilators available. Default: 170000"
+			);
 			return 0;
 		}
 	}
-
+	
 	// NOTE: Susceptible and Infected need updates
 	// NOTE: currently People mem block is never freed 
 	// NOTE: this is an OK assumption since it's basically used until the death 
@@ -451,7 +502,8 @@ int main(
 		for(int ThreadIndex = 0; ThreadIndex < MaxThreads; ThreadIndex++)
 		{
 			set_next_state_data* Args = &ArgsArray[ThreadIndex];
-			Args->DeathRate = DeathRate;
+			Args->BelowCapacityDeathRate = BelowCapacityDeathRate;
+			Args->AboveCapacityDeathRate = AboveCapacityDeathRate;
 			Args->TotalsMutex = TotalsMutex;
 			Args->EncounterRate = EncounterRate;
 			Args->DaysImmune = DaysImmune;
@@ -499,6 +551,8 @@ int main(
 			TotalDead,
 			NewCases
 		);
+		// NOTE: need to track this for ventilator comparisons
+		GlobalInfectedCount = TotalInfected;
 	}
 
 	LARGE_INTEGER End = GetWallClock();
