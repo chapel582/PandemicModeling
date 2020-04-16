@@ -1,0 +1,6 @@
+Questions to answer
+What happens if we go for a "herd immunity strategy"?
+	This is basically the same as cutting out the vulnerable portion of the
+	population from susceptible. 
+When can we stop such that we no longer enter back into exponential growth?
+In other words, how many of us have to be immune for the number of infections to only drop?

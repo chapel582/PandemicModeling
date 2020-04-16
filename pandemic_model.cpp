@@ -1,19 +1,3 @@
-/*
-Questions to answer
-What about herd immunity strategy where only the old or vulnerable stay in?
-What happens if we stop social isolation now/very soon?
-What if they aren't infecting anyone after they start exhibiting symptoms?
-What happens if there's some reduction in transmission after infection but not 
-What happens if people with "close contact" also isolate themselves?
-	(before exhibiting symptoms)
-What about essential workers? How many of them are there?
-*/
-
-/*
-Assumptions
-Encounter rate is constant. Not a function of number who have died
-*/
-
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -299,6 +283,7 @@ int main(
 	// NOTE: Other arguments
 	uint32_t SimulationDays = 365;
 	int MaxThreads = 4;
+	// int VentilatorCount; // TODO: ventilator count needed
 
 	// NOTE: handle command line arguments
 	for(int ArgumentIndex = 0; ArgumentIndex < Argc; ArgumentIndex++)
@@ -424,6 +409,7 @@ int main(
 		uint64_t TotalInfected = 0;
 		uint64_t TotalRecovered = 0;
 		uint64_t TotalDead = 0;
+		uint64_t NewCases = 0;
 
 		// TODO: see if these loops need parallelization for large values
 		for(
@@ -438,7 +424,11 @@ int main(
 				// TODO: track new cases here
 				Person->State = Person->NextState;
 				Person->NextState = Person->State;
-				Person->DaysInState = 0;	
+				Person->DaysInState = 0;
+				if(Person->State == State_Infected)
+				{
+					NewCases++;
+				}
 			}
 			Person->DaysInState++;
 		}
@@ -486,12 +476,13 @@ int main(
 		WaitForMultipleObjects(MaxThreads, ThreadHandles, TRUE, INFINITE);
 
 		printf(
-			"%u, %llu, %llu, %llu, %llu\n",
+			"%u, %llu, %llu, %llu, %llu, %llu\n",
 			Day + 1,
 			TotalSusceptible,
 			TotalInfected,
 			TotalRecovered,
-			TotalDead
+			TotalDead,
+			NewCases
 		);
 		// TODO: write out to a csv
 	}
