@@ -606,7 +606,7 @@ int main(
 	LARGE_INTEGER End = GetWallClock();
 
 	float SecondsElapsed = GetSecondsElapsed(Start, End);
-	printf("Days to 0 infected %u\n", Day + 1);
+	printf("Days to 0 infected: %u\n", Day + 1);
 	printf("Total recovered (from 4/15 onward): %lld\n", TotalRecovered); 
 	printf(
 		"%% of total population recovered: %f\n", 
