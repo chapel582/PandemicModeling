@@ -83,14 +83,14 @@ typedef struct person
 {
 	state State;
 	state NextState;
-	int DaysInState; // NOTE: only tracked for IR states
+	int DaysInState;
 } person;
 
 void InitPerson(person* Person, state State)
 {
 	Person->State = State;
 	Person->NextState = State;
-	Person->DaysInState = 0; // NOTE: only tracked for IR states
+	Person->DaysInState = 0;
 }
 
 typedef struct set_next_state_data
@@ -99,6 +99,7 @@ typedef struct set_next_state_data
 	float EncounterRate;
 	HANDLE TotalsMutex;
 	int DaysSick;
+	int DaysImmune;
 	person* People;
 	uint64_t StartAt;
 	uint64_t EndAt;
@@ -119,6 +120,7 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 		(float) EncounterRate - (float) EncounterRateInt
 	);
 	int DaysSick = Args->DaysSick;
+	int DaysImmune = Args->DaysImmune;
 	person* People = Args->People;
 	uint64_t StartAt = Args->StartAt;
 	uint64_t EndAt = Args->EndAt;
@@ -229,6 +231,10 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 		else if(Person->State == State_Recovered)
 		{
 			TotalRecovered++;
+			if(Person->DaysInState > DaysImmune)
+			{
+				Person->NextState = State_Susceptible;
+			}
 		}
 		else if(Person->State == State_Dead)
 		{
@@ -260,7 +266,6 @@ int main(
 	GlobalPerformanceFrequency = PerformanceFrequency.QuadPart;
 
 	// NOTE: PARAMETERS
-	// TODO: add command line arguments
 	// NOTE: the average number of people encountered by a person each day in 
 	// NOTE: a way that would tranfer the virus. 
 	// NOTE: fractional means that there's a chance the person doesn't get it
@@ -269,10 +274,9 @@ int main(
 	int DaysSick = 14;
 	// NOTE: how many of the infected die 
 	// NOTE: default based on S. Korea's COVID19 numbers as of April 15, 2020
-	// NOTE: 225 / 10591
+	// CONT: 225 / 10591
 	float DeathRate = 0.02f;
-	// TODO: give an option for making the death rate a function of hospital capacity
-	// TOOD: give an option for people becoming reinfected (maybe after a certain amount of time) 
+	// TODO: give an option for making the death rate a function of hospital ventilator count
 
 	// NOTE: initial conditions
 	uint64_t SusceptiblePop = 999999;
@@ -282,8 +286,10 @@ int main(
 
 	// NOTE: Other arguments
 	uint32_t SimulationDays = 365;
+	// NOTE: The # of days you keep your immunity
+	// NOTE: By default, it's "infinite" by eing SimulationDays + 1
+	int DaysImmune = SimulationDays + 1;
 	int MaxThreads = 4;
-	// int VentilatorCount; // TODO: ventilator count needed
 
 	// NOTE: handle command line arguments
 	for(int ArgumentIndex = 0; ArgumentIndex < Argc; ArgumentIndex++)
@@ -340,6 +346,13 @@ int main(
 		else if(
 			ParseArg(
 				"%u", Argv, ArgumentIndex, "--threads", &MaxThreads
+			) == 0
+		)
+		{
+		}
+		else if(
+			ParseArg(
+				"%u", Argv, ArgumentIndex, "--daysimmune", &DaysImmune
 			) == 0
 		)
 		{
@@ -402,6 +415,7 @@ int main(
 		(float) OriginalPop / (float) MaxThreads
 	);
 
+	printf("Day, Susceptible, Infected, Recovered, Dead, New Cases\n");
 	LARGE_INTEGER Start = GetWallClock();
 	for(uint32_t Day = 0; Day < SimulationDays; Day++)
 	{
@@ -440,6 +454,7 @@ int main(
 			Args->DeathRate = DeathRate;
 			Args->TotalsMutex = TotalsMutex;
 			Args->EncounterRate = EncounterRate;
+			Args->DaysImmune = DaysImmune;
 			Args->DaysSick = DaysSick;
 			Args->People = People;
 			Args->StartAt = ThreadIndex * ThreadDivision; 
@@ -484,7 +499,6 @@ int main(
 			TotalDead,
 			NewCases
 		);
-		// TODO: write out to a csv
 	}
 
 	LARGE_INTEGER End = GetWallClock();
