@@ -183,7 +183,11 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 			{
 				float Value = RandUnity();
 				float DeathRate;
-				if(GlobalInfectedCount > GlobalVentilatorCount)
+				// NOTE: the 0.05 GlobalInfectedCount is based on New York's
+				// CONT: ratio between infected (~200000) to their ventilators
+				// CONT: (~10000) resulting in a higher fatality rate
+				// CONT: source https://www.usatoday.com/story/news/factcheck/2020/04/01/fact-check-does-new-york-have-stockpile-unneeded-ventilators/5097170002/
+				if((0.05 * GlobalInfectedCount) > GlobalVentilatorCount)
 				{
 					DeathRate = AboveCapacityDeathRate;
 				}
