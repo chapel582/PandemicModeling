@@ -73,6 +73,12 @@ int ParseArg(
 	}
 }
 
+typedef enum recover_type
+{
+	RecoverType_Probability,
+	RecoverType_Delay
+}recover_type;
+
 typedef enum state
 {
 	State_Susceptible,
@@ -85,13 +91,15 @@ typedef struct person
 {
 	state State;
 	state NextState;
+	recover_type RecoverType;
 	int DaysInState;
 } person;
 
-void InitPerson(person* Person, state State)
+void InitPerson(person* Person, state State, recover_type RecoverType)
 {
 	Person->State = State;
 	Person->NextState = State;
+	Person->RecoverType = RecoverType;
 	Person->DaysInState = 0;
 }
 
@@ -158,7 +166,20 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 		{
 			TotalInfected++;
 
-			if(Person->DaysInState > DaysSick)
+			// NOTE: this is here to help with initialized infected having
+			// NOTE: probabilistic recovery instead of delay recovery
+			bool ShouldRecover;
+			if(Person->RecoverType == RecoverType_Probability)
+			{
+				float RecoverCheck = RandUnity();
+				ShouldRecover = RecoverCheck < (1.0f / float(DaysSick));	
+			}
+			else
+			{
+				ShouldRecover = Person->DaysInState > DaysSick;
+			}
+
+			if(ShouldRecover)
 			{
 				float Value = RandUnity();
 				float DeathRate;
@@ -177,6 +198,7 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 				else
 				{
 					Person->NextState = State_Recovered;
+					Person->RecoverType = RecoverType_Delay;
 				}
 			}
 			else
@@ -441,17 +463,17 @@ int main(
 	for(PersonIndex = 0; PersonIndex < SusceptiblePop; PersonIndex++)
 	{
 		person* Person = &People[PersonIndex];
-		InitPerson(Person, State_Susceptible);
+		InitPerson(Person, State_Susceptible, RecoverType_Delay);
 	}
 	for(; PersonIndex < (SusceptiblePop + InfectedPop); PersonIndex++)
 	{
 		person* Person = &People[PersonIndex];
-		InitPerson(Person, State_Infected);
+		InitPerson(Person, State_Infected, RecoverType_Probability);
 	}
 	for(; PersonIndex < OriginalPop; PersonIndex++)
 	{
 		person* Person = &People[PersonIndex];
-		InitPerson(Person, State_Recovered);	
+		InitPerson(Person, State_Recovered, RecoverType_Delay);	
 	}
 
 	// NOTE: These also never get deallocated. No need
