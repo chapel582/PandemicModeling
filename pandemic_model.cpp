@@ -506,13 +506,19 @@ int main(
 
 	printf("Day, Susceptible, Infected, Recovered, Dead, New Cases\n");
 	LARGE_INTEGER Start = GetWallClock();
-	for(uint32_t Day = 0; Day < SimulationDays; Day++)
+	uint32_t Day;
+	uint64_t TotalSusceptible = 0;
+	uint64_t TotalInfected = 0;
+	uint64_t TotalRecovered = 0;
+	uint64_t TotalDead = 0;
+	uint64_t NewCases = 0;
+	for(Day = 0; Day < SimulationDays; Day++)
 	{
-		uint64_t TotalSusceptible = 0;
-		uint64_t TotalInfected = 0;
-		uint64_t TotalRecovered = 0;
-		uint64_t TotalDead = 0;
-		uint64_t NewCases = 0;
+		TotalSusceptible = 0;
+		TotalInfected = 0;
+		TotalRecovered = 0;
+		TotalDead = 0;
+		NewCases = 0;
 
 		// TODO: see if these loops need parallelization for large values
 		for(
@@ -600,6 +606,21 @@ int main(
 	LARGE_INTEGER End = GetWallClock();
 
 	float SecondsElapsed = GetSecondsElapsed(Start, End);
+	printf("Days to 0 infected %u\n", Day + 1);
+	printf("Total recovered (from 4/15 onward): %lld\n", TotalRecovered); 
+	printf(
+		"%% of total population recovered: %f\n", 
+		((float) TotalRecovered) / ((float) OriginalPop)
+	); 
+	printf("Total Dead (from 4/15 onward): %lld\n", TotalDead); 
+	printf(
+		"%% of total population dead: %f\n",
+		((float) TotalDead) / ((float) OriginalPop)
+	);
+	printf(
+		"%% of infected dead: %f\n", 
+		((float) TotalDead) / ((float) (TotalRecovered + TotalDead))	
+	);
 	printf("Time to run %f\n", SecondsElapsed);
 	fflush(stdout);
 	return 0;
