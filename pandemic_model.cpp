@@ -18,6 +18,7 @@ Encounter rate is constant. Not a function of number who have died
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include <windows.h>
 
 int64_t GlobalPerformanceFrequency;
@@ -62,6 +63,30 @@ float RandUnity()
 	return ((float) (rand() % RAND_MAX)) / ((float) RAND_MAX);
 }
 
+// NOTE: command line argument token handling
+int ParseArg(
+	char* Format, char* Argv[], int Index, char* Argument, void* Result
+)
+{
+	if(strcmp(Argv[Index++], Argument) == 0)
+	{
+		int ScanResult = sscanf_s(Argv[Index], Format, Result);
+		if(ScanResult != 1)
+		{
+			printf("Unable to parse %s for %s", Argv[Index], Argv[Index - 1]);
+			return 1;
+		}
+		else
+		{
+			return 0;
+		}
+	}
+	else
+	{
+		return 1;
+	}
+}
+
 typedef enum state
 {
 	State_Susceptible,
@@ -74,24 +99,22 @@ typedef struct person
 {
 	state State;
 	state NextState;
-	float EncounterRate;
 	int DaysInState; // NOTE: only tracked for IR states
 } person;
 
-void InitPerson(person* Person, state State, float EncounterRate)
+void InitPerson(person* Person, state State)
 {
 	Person->State = State;
 	Person->NextState = State;
-	Person->EncounterRate = EncounterRate;
 	Person->DaysInState = 0; // NOTE: only tracked for IR states
 }
 
 typedef struct set_next_state_data
 {
 	float DeathRate;
+	float EncounterRate;
 	HANDLE TotalsMutex;
-	int MaxEncounterRate;
-	int DaysToRecover;
+	int DaysSick;
 	person* People;
 	uint64_t StartAt;
 	uint64_t EndAt;
@@ -106,8 +129,12 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 {
 	set_next_state_data* Args = (set_next_state_data*) LpParameter;
 	float DeathRate = Args->DeathRate;
-	int MaxEncounterRate = Args->MaxEncounterRate;
-	int DaysToRecover = Args->DaysToRecover;
+	float EncounterRate = Args->EncounterRate;
+	int EncounterRateInt = (int) EncounterRate;
+	float EncounterRateFractional = (
+		(float) EncounterRate - (float) EncounterRateInt
+	);
+	int DaysSick = Args->DaysSick;
 	person* People = Args->People;
 	uint64_t StartAt = Args->StartAt;
 	uint64_t EndAt = Args->EndAt;
@@ -120,7 +147,7 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 	
 	// NOTE: allocate once per thread for speed
 	person** ToInfect = (person**) malloc(
-		MaxEncounterRate * sizeof(person*)
+		((int) (EncounterRateInt) + 1) * sizeof(person*)
 	);
 
 	// NOTE: There may be some concern over race conditions here.
@@ -141,7 +168,7 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 		{
 			TotalInfected++;
 
-			if(Person->DaysInState > DaysToRecover)
+			if(Person->DaysInState > DaysSick)
 			{
 				float Value = RandUnity();
 				if(Value < DeathRate)
@@ -154,16 +181,10 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 				}
 			}
 			else
-			{
-				// NOTE: need to see how many people this person infected
-				int EncounterRateInt = (int) Person->EncounterRate;
-					
+			{					
 				int LivingFound = 0;
 				while(LivingFound < EncounterRateInt)
 				{
-					// TODO: consider if having the living in a linked list could help lookups like this go faster
-
-					// TODO: factor out finding a non-dead, unrecovered person
 					uint64_t RandomIndex = Rand(OriginalPop);
 					person* RandomPerson = &People[RandomIndex];
 
@@ -174,9 +195,6 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 					}
 				}
 
-				float EncounterRateFractional = (
-					(float) Person->EncounterRate - (float) EncounterRateInt
-				);
 				float Value = RandUnity();
 				if(Value < EncounterRateFractional)
 				{
@@ -245,7 +263,13 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 	return 0;
 }
 
-int main()
+// NOTE: here's some more info on entry points & Windows
+// CONT: https://docs.microsoft.com/en-us/cpp/cpp/main-function-command-line-args?view=vs-2019
+int main(
+	int Argc,
+	char* Argv[],
+	char* Envp[]
+)
 {
 	LARGE_INTEGER PerformanceFrequency;
 	QueryPerformanceFrequency(&PerformanceFrequency);
@@ -257,11 +281,12 @@ int main()
 	// NOTE: a way that would tranfer the virus. 
 	// NOTE: fractional means that there's a chance the person doesn't get it
 	float EncounterRate = 0.25;
-	int MaxEncounterRate = 10;
 	// NOTE: the average time in days to recover
-	int DaysToRecover = 14;
+	int DaysSick = 14;
 	// NOTE: how many of the infected die 
-	float DeathRate = 0.01f; // TODO: update me with Korea's numbers
+	// NOTE: default based on S. Korea's COVID19 numbers as of April 15, 2020
+	// NOTE: 225 / 10591
+	float DeathRate = 0.02f;
 	// TODO: give an option for making the death rate a function of hospital capacity
 	// TOOD: give an option for people becoming reinfected (maybe after a certain amount of time) 
 
@@ -272,8 +297,89 @@ int main()
 	uint64_t OriginalPop = SusceptiblePop + InfectedPop + RecoveredPop;
 
 	// NOTE: Other arguments
-	uint32_t SimulationDays = 100;
+	uint32_t SimulationDays = 365;
 	int MaxThreads = 4;
+
+	// NOTE: handle command line arguments
+	for(int ArgumentIndex = 0; ArgumentIndex < Argc; ArgumentIndex++)
+	{		
+		if(
+			ParseArg(
+				"%f", Argv, ArgumentIndex, "--encounter", &EncounterRate
+			) == 0
+		)
+		{
+		}
+		else if(
+			ParseArg(
+				"%u", Argv, ArgumentIndex, "--dayssick", &DaysSick
+			) == 0
+		)
+		{
+		}
+		else if(
+			ParseArg(
+				"%f", Argv, ArgumentIndex, "--death", &DeathRate
+			) == 0
+		)
+		{
+		}
+		else if(
+			ParseArg(
+				"%llu", Argv, ArgumentIndex, "--susceptible", &SusceptiblePop
+			) == 0
+		)
+		{
+		}
+		else if(
+			ParseArg(
+				"%llu", Argv, ArgumentIndex, "--infected", &InfectedPop
+			) == 0
+		)
+		{
+		}
+		else if(
+			ParseArg(
+				"%llu", Argv, ArgumentIndex, "--recovered", &RecoveredPop
+			) == 0
+		)
+		{
+		}
+		else if(
+			ParseArg(
+				"%u", Argv, ArgumentIndex, "--simdays", &SimulationDays
+			) == 0
+		)
+		{
+		}
+		else if(
+			ParseArg(
+				"%u", Argv, ArgumentIndex, "--threads", &MaxThreads
+			) == 0
+		)
+		{
+		}
+		else if(strcmp(Argv[ArgumentIndex], "--help") == 0)
+		{
+			printf("--encounter <encounter>\n");
+			printf("\tFloat. The average number of people an infected person will infect each day. Default: 0.25\n");
+			printf("--dayssick <dayssick>\n");
+			printf("\tInt. The number of days a person remains sick. Default: 14\n");
+			printf("--death <death>\n");
+			printf("\tFloat. The likelihood that someone dies from the illness. Default: 0.01\n");
+			printf("--susceptible <susceptible>\n");
+			printf("\tInt. Number of people not immune to the disease. Default 999999\n");
+			printf("--infected <infected>\n");
+			printf("\tInt. Number of people infected. Default: 1");
+			printf("--recovered <recovered>\n");
+			printf("\tInt. Number of people immune to the disease. Default: 0");
+			printf("--simdays <simdays>\n");
+			printf("\tInt. Number of days to simulate. Default: 365");
+			printf("--threads <threads>\n");
+			printf("\tInt. Number of threads to use. Default: 4");
+			return 0;
+		}
+	}
 
 	// NOTE: Susceptible and Infected need updates
 	// NOTE: currently People mem block is never freed 
@@ -284,17 +390,17 @@ int main()
 	for(PersonIndex = 0; PersonIndex < SusceptiblePop; PersonIndex++)
 	{
 		person* Person = &People[PersonIndex];
-		InitPerson(Person, State_Susceptible, EncounterRate);
+		InitPerson(Person, State_Susceptible);
 	}
 	for(; PersonIndex < (SusceptiblePop + InfectedPop); PersonIndex++)
 	{
 		person* Person = &People[PersonIndex];
-		InitPerson(Person, State_Infected, EncounterRate);
+		InitPerson(Person, State_Infected);
 	}
 	for(; PersonIndex < OriginalPop; PersonIndex++)
 	{
 		person* Person = &People[PersonIndex];
-		InitPerson(Person, State_Recovered, EncounterRate);	
+		InitPerson(Person, State_Recovered);	
 	}
 
 	// NOTE: These also never get deallocated. No need
@@ -321,11 +427,12 @@ int main()
 
 		// TODO: see if these loops need parallelization for large values
 		for(
-			person* Person = &People[0];
-			Person < &People[OriginalPop];
-			Person++
+			PersonIndex = 0;
+			PersonIndex < OriginalPop;
+			PersonIndex++
 		)
 		{
+			person* Person = &People[PersonIndex]; 
 			if(Person->State != Person->NextState)
 			{
 				// TODO: track new cases here
@@ -342,8 +449,8 @@ int main()
 			set_next_state_data* Args = &ArgsArray[ThreadIndex];
 			Args->DeathRate = DeathRate;
 			Args->TotalsMutex = TotalsMutex;
-			Args->MaxEncounterRate = MaxEncounterRate;
-			Args->DaysToRecover = DaysToRecover;
+			Args->EncounterRate = EncounterRate;
+			Args->DaysSick = DaysSick;
 			Args->People = People;
 			Args->StartAt = ThreadIndex * ThreadDivision; 
 			if(ThreadIndex == (MaxThreads - 1))
@@ -393,6 +500,6 @@ int main()
 
 	float SecondsElapsed = GetSecondsElapsed(Start, End);
 	printf("Time to run %f\n", SecondsElapsed);
-
+	fflush(stdout);
 	return 0;
 }
