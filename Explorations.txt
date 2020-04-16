@@ -1,40 +1,239 @@
 Questions to answer
 What would happen if we did absolutely nothing, starting right now?
-	EncounterRate = 0.25;
-	DaysSick = 14;
-	DeathRate = 0.02f;
-	VentilatorCount = 170000;
-	HospitalizationRate = ;
+	Notes on Model
+		US EncounterRate = 0.25, which is about where it was at the beginning of the pandemic
+		http://www.davidketcheson.info/2020/03/19/SIR_Estimating_parameters.html
 
-	SusceptiblePop = 999999;
-	InfectedPop = 1;
-	RecoveredPop = 0;
-	OriginalPop = SusceptiblePop + InfectedPop + RecoveredPop;
+		EncounterRate lowered for less dense Oregon. US density is about
+		87 people / sq. mi. Oregon density is about 39 people / sq. mi. 
+		(Sourced on Wikipedia). Let's assume encounter rate is approximately
+		linearly related to density, and say Oregon's EncounterRate = 0.11 
 
-	SimulationDays = 365;
-	DaysImmune = SimulationDays + 1;
-	MaxThreads = 4;
+		The recovered pop might be underestimated, but the infected pop might be
+		as well. This is because it's determined from reported cases.
+
+	US
+		Args
+			.\build\pandemic_model.exe --susceptible 322607393 --infected 392607 --recovered 214711
+		Parameters		
+			EncounterRate = 0.25 
+			DaysSick = 14
+			BelowCapacityDeathRate = 0.02
+			AboveCapacityDeathRate = 0.055
+			GlobalVentilatorCount = 170000
+			SusceptiblePop = 322392682
+			InfectedPop = 392607
+			RecoveredPop = 214711
+
+			SimulationDays = 365
+			DaysImmune = SimulationDays + 1
+			MaxThreads = 4
+		Results
+			Days until herd immunity dominates (i.e. recovery exceeds new infections): 39
+			Days until 0 infected: 202
+			Total recovered (from 4/15 onward): 149258217
+			% of total population recovered: 46
+			Total Dead (from 4/15 onward): 8571634
+			% of total population dead: 2.7
+			% of infected dead: 5.4
+		
+	OR
+		Args
+			.\build\pandemic_model.exe --susceptible 4217737 --infected 897 --recovered 736 --encounter 0.11 --ventilators 10000
+		Parameters		
+			EncounterRate = 0.11
+			DaysSick = 14
+			BelowCapacityDeathRate = 0.02
+			AboveCapacityDeathRate = 0.055
+			GlobalVentilatorCount = 10000
+			SusceptiblePop = 4217737
+			InfectedPop = 897
+			RecoveredPop = 736
+
+			SimulationDays = 365
+			DaysImmune = SimulationDays + 1
+			MaxThreads = 4
+		Results
+			Days until herd immunity dominates (i.e. recovery exceeds new infections): 120
+			Days until 0 infected: > 365
+			Total recovered (from 4/15 onward): 2378927
+			% of total population recovered: 56.4
+			Total Dead (from 4/15 onward): 120652
+			% of total population dead: 2.9
+			% of infected dead: 4.8
+
+	Speculative Narrative Summary
+		We weren't ready for things to go back to normal. We were just at the 
+		start of the curve. Herd immunity didn't come for over a month. The 
+		hardest month we ever knew. 
+		Even after herd immunity, there tens of thousands of new cases in the 
+		country every day. Thousands died every day. 
+		Oregon, California, it didn't matter. Things got so much worse than New
+		York was in March and April. You were probably infected. 
+		You almost certainly know multiple people who had the infection. 
+		There's a good chance someone you know died. 
+		Many never got a ventilator who needed them. Doctors are forced to choose 
+		who lives and who dies.
+		The country spent months with every ventilator occupied. 
+
+What happens if we keep the curve under ventilator capacity?
+
+	Notes on the model
+		This is done by lowering the encounter rate to a point that the peak
+		never exceeds the global ventilator count by a large factor. 
+		This value is somewhere around (1 / DaysRecovery).
+
+	US
+		Encounter Rate = 0.07
+		DaysSick = 14
+		BelowCapacityDeathRate = 0.02
+		AboveCapacityDeathRate = 0.055
+		GlobalVentilatorCount = 170000
+		SusceptiblePop = 322392682
+		InfectedPop = 392607
+		RecoveredPop = 214711
+
+		SimulationDays = 550
+		DaysImmune = SimulationDays + 1
+		MaxThreads = 4
+
+		Results
+		Days Until 0 Infected: > 550
+		Total Recovered (from 4/15 onward): 6037409
+		% of Total Population Recovered: 1.8
+		Total Dead (from 4/15 onward): 118956
+		% of Total Population Dead: 0.03
+		$ of infected dead: 1.9
+				
+	OR
+		Args
+			.\build\pandemic_model.exe --susceptible 4217737 --infected 897 --recovered 736 --encounter 0.07 --ventilators 10000 --simdays 550
+		Parameters		
+			EncounterRate = 0.07
+			DaysSick = 14
+			BelowCapacityDeathRate = 0.02
+			AboveCapacityDeathRate = 0.055
+			GlobalVentilatorCount = 10000
+			SusceptiblePop = 4217737
+			InfectedPop = 897
+			RecoveredPop = 736
+
+			SimulationDays = 550
+			DaysImmune = SimulationDays + 1
+			MaxThreads = 4
+		Results
+			Days until 0 infected: > 550
+			Total recovered (from 4/15 onward): 33170
+			% of total population recovered: 0.7
+			Total Dead (from 4/15 onward): 691
+			% of total population dead: 0.01
+			% of infected dead: 2.0
+
+What if governors and people stop taking it seriously? (Life returns to normal in 30 days)
+	Notes on the model
+		Start with very aggressive quarantining. EncounterRate = 0.03. 
+		After new cases is under 500, EncounterRate returns to value from first model.
+		The results basically show why things won't be back to normal without
+		additional aggressive testing and monitoring. If we go about our daily
+		lives, we need another way to lower the encounter rate
+
+	US
+		Encounter Rate = 0.07 -> 0.25
+		DaysSick = 14
+		BelowCapacityDeathRate = 0.02
+		AboveCapacityDeathRate = 0.055
+		GlobalVentilatorCount = 170000
+		SusceptiblePop = 322392682
+		InfectedPop = 392607
+		RecoveredPop = 214711
+
+		SimulationDays = 365
+		DaysImmune = SimulationDays + 1
+		MaxThreads = 4
+
+		Results
+			Days Until 0 Infected: 305
+			Total Recovered (from 4/15 onward): 148079786
+			% of Total Population Recovered: 46
+			Total Dead (from 4/15 onward): 8458979
+			% of Total Population Dead: 2.6 %
+			$ of infected dead: 5.7
+
+	OR
+		Args
+			.\build\pandemic_model.exe --susceptible 4217737 --infected 897 --recovered 736 --encounter 0.07 --ventilators 10000 --simdays 550
+		Parameters		
+			EncounterRate = 0.07 -> 0.11
+			DaysSick = 14
+			BelowCapacityDeathRate = 0.02
+			AboveCapacityDeathRate = 0.055
+			GlobalVentilatorCount = 10000
+			SusceptiblePop = 4217737
+			InfectedPop = 897
+			RecoveredPop = 736
+
+			SimulationDays = 550
+			DaysImmune = SimulationDays + 1
+			MaxThreads = 4
+		Results
+			Days until 0 infected: 396
+			Total recovered (from 4/15 onward): 2371743
+			% of total population recovered: 56
+			Total Dead (from 4/15 onward): 119170
+			% of total population dead: 2.8
+			% of infected dead: 4.7 
+
 
 What happens if we go for a "herd immunity strategy" but let the most vulnerable stay in?
-	This is basically the same as cutting out the vulnerable portion of the
-	population from susceptible. This is primarily a drop in fatality rate
+	Notes on the model:
+		This is basically the same as cutting out the vulnerable portion of the
+		population from susceptible. This is primarily a drop in fatality rate 
+		and a reduction in the susceptible population
 
-	EncounterRate = 0.25;
-	DaysSick = 14;
-	DeathRate = 0.02f;
-	VentilatorCount = 170000;
-	HospitalizationRate = ;
+	Args
+		.\build\pandemic_model.exe --susceptible 251466292 --infected 392607 --recovered 214711 --encounter 0.25 --death 0.005 --abovedeath 0.01 --simdays 550
+	US
+		Encounter Rate = 0.07 -> 0.25
+		DaysSick = 14
+		BelowCapacityDeathRate = 0.005
+		AboveCapacityDeathRate = 0.01
+		GlobalVentilatorCount = 170000
+		SusceptiblePop = 251466292
+		InfectedPop = 392607
+		RecoveredPop = 214711
 
-	SusceptiblePop = 999999;
-	InfectedPop = 1;
-	RecoveredPop = 0;
-	OriginalPop = SusceptiblePop + InfectedPop + RecoveredPop;
+		SimulationDays = 550
+		DaysImmune = SimulationDays + 1
+		MaxThreads = 4
 
-	SimulationDays = 365;
-	DaysImmune = SimulationDays + 1;
-	MaxThreads = 4;
+		Results
+			Days Until 0 Infected: 247
+			Total Recovered (from 4/15 onward): 139067124
+			% of Total Population Recovered: 43
+			Total Dead (from 4/15 onward): 1390097
+			% of Total Population Dead: 0.5
+			% of infected dead: 0.1
 
-What happens if we stop early?
-When can we stop such that we no longer enter back into exponential growth?
-In other words, how many of us have to be immune for the number of infections to only drop?
-What happens if people can lose their immunity?
+	OR
+		Args
+			.\build\pandemic_model.exe --susceptible 3289834 --infected 897 --recovered 736 --encounter 0.11 --ventilators 10000 --simdays 550 --death 0.005 --abovedeath 0.01
+		Parameters		
+			EncounterRate = 0.11
+			DaysSick = 14
+			BelowCapacityDeathRate = 0.005
+			AboveCapacityDeathRate = 0.01
+			GlobalVentilatorCount = 10000
+			SusceptiblePop = 3289834
+			InfectedPop = 897
+			RecoveredPop = 736
+
+			SimulationDays = 550
+			DaysImmune = SimulationDays + 1
+			MaxThreads = 4
+		Results
+			Days until 0 infected: 353
+			Total recovered (from 4/15 onward): 1951863
+			% of total population recovered: 46
+			Total Dead (from 4/15 onward): 17326
+			% of total population dead: 0.4
+			% of infected dead: 0.9
