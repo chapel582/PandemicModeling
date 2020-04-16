@@ -301,7 +301,6 @@ int main(
 	uint64_t SusceptiblePop = 999999;
 	uint64_t InfectedPop = 1;
 	uint64_t RecoveredPop = 0;
-	uint64_t OriginalPop = SusceptiblePop + InfectedPop + RecoveredPop;
 
 	// NOTE: Other arguments
 	uint32_t SimulationDays = 365;
@@ -403,9 +402,9 @@ int main(
 			printf("--dayssick <dayssick>\n");
 			printf("\tInt. The number of days a person remains sick. Default: 14\n");
 			printf("--death <death>\n");
-			printf("\tFloat. The likelihood that someone dies from the illness with access to ventilator Default: 0.02\n");
-			printf("--death <death>\n");
-			printf("\tFloat. The likelihood that someone dies from the illness without access to ventilator Default: 0.055\n");
+			printf("\tFloat. The likelihood that someone dies when there are enough ventilators. Default: 0.02\n");
+			printf("--abovedeath <abovedeath>\n");
+			printf("\tFloat. The likelihood that someone dies from the illness when there aren't enough ventilators Default: 0.055\n");
 			printf("--susceptible <susceptible>\n");
 			printf("\tInt. Number of people not immune to the disease. Default 999999\n");
 			printf("--infected <infected>\n");
@@ -415,7 +414,7 @@ int main(
 				"\tInt. Number of people immune to the disease. Default: 0\n"
 			);
 			printf("--simdays <simdays>\n");
-			printf("\tInt. Number of days to simulate. Default: 365\n");
+			printf("\tInt. Number of days to simulate. Will terminate early if active infections hits 0. Default: 365\n");
 			printf("--threads <threads>\n");
 			printf("\tInt. Number of threads to use. Default: 4\n");
 			printf("--daysimmune <daysimmune>\n");
@@ -429,6 +428,9 @@ int main(
 			return 0;
 		}
 	}
+	// NOTE: updated OrginalPop once we have all the args set
+	uint64_t OriginalPop = SusceptiblePop + InfectedPop + RecoveredPop;
+
 	
 	// NOTE: Susceptible and Infected need updates
 	// NOTE: currently People mem block is never freed 
@@ -551,6 +553,10 @@ int main(
 			TotalDead,
 			NewCases
 		);
+		if(TotalInfected == 0)
+		{
+			break;
+		}
 		// NOTE: need to track this for ventilator comparisons
 		GlobalInfectedCount = TotalInfected;
 	}
