@@ -62,12 +62,10 @@ What would happen if we went back to normal, starting right now?
 			% of total population dead: 2.9
 			% of infected dead: 4.8
 
-What happens if we keep the curve under ventilator capacity?
+What happens if we keep the reproduction rate under 1?
 
 	Notes on the model
-		This is done by lowering the encounter rate to a point that the peak
-		never exceeds the global ventilator count by a large factor. 
-		This value is somewhere around (1 / DaysRecovery).
+		The encounter rate for this is around (1 / DaysRecovery).
 
 	US
 		Encounter Rate = 0.07
@@ -84,12 +82,12 @@ What happens if we keep the curve under ventilator capacity?
 		MaxThreads = 4
 
 		Results
-		Days Until 0 Infected: > 550
-		Total Recovered: 6037409
-		% of Total Population Recovered: 1.8
-		Total Dead: 118956
-		% of Total Population Dead: 0.03
-		$ of infected dead: 1.9
+			Days Until 0 Infected: > 550
+			Total Recovered: 6037409
+			% of Total Population Recovered: 1.8
+			Total Dead: 118956
+			% of Total Population Dead: 0.03
+			$ of infected dead: 1.9
 				
 	OR
 		Args
@@ -218,6 +216,23 @@ have it, and then reopen completely?
 			Days Until 0 Infected: 305
 			Total Recovered: 149796532
 			Total Dead: 8573411
+
+What if we do a very aggressive quarantine, wait until only a handful of people 
+have it, and then manage to cut the reproduction rate in half?
+	US
+		Note on model
+			Waited until we were under 100 cases, then reopened with 50% reproduction rate
+		Args
+			.\build\pandemic_model.exe --susceptible 322607393 --infected 392607 --recovered 214711 --encounter 0.01
+			.\build\pandemic_model.exe --susceptible 322547805 --infected 94 --recovered 657670 --encounter 0.25
+
+		Results
+			Days to 0 infected: 414
+			Total recovered: 75787083
+			% of total population recovered: 23.45
+			Total Dead: 4124227
+			% of total population dead: 1.28
+			% of infected dead: 5.16
 
 What happens if we go for a "herd immunity strategy" but let the most vulnerable stay in?
 	Notes on the model:
@@ -481,26 +496,27 @@ immunity?
 		This value is somewhere around (1 / DaysRecovery).
 
 	US
-		Encounter Rate = 0.07
-		DaysSick = 14
-		BelowCapacityDeathRate = 0.02
-		AboveCapacityDeathRate = 0.055
-		GlobalVentilatorCount = 170000
-		SusceptiblePop = 322392682
-		InfectedPop = 392607
-		RecoveredPop = 214711
+		Parameters
+			Encounter Rate = 0.07
+			DaysSick = 14
+			BelowCapacityDeathRate = 0.02
+			AboveCapacityDeathRate = 0.055
+			GlobalVentilatorCount = 170000
+			SusceptiblePop = 322392682
+			InfectedPop = 392607
+			RecoveredPop = 214711
 
-		SimulationDays = 550
-		DaysImmune = SimulationDays + 1
-		MaxThreads = 4
+			SimulationDays = 550
+			DaysImmune = SimulationDays + 1
+			MaxThreads = 4
 
 		Results
-		Days Until 0 Infected: > 550
-		Total Recovered: 6037409
-		% of Total Population Recovered: 1.8
-		Total Dead: 118956
-		% of Total Population Dead: 0.03
-		$ of infected dead: 1.9
+			Days Until 0 Infected: > 550
+			Total Recovered: 6037409
+			% of Total Population Recovered: 1.8
+			Total Dead: 118956
+			% of Total Population Dead: 0.03
+			$ of infected dead: 1.9
 				
 	OR
 		Args
@@ -532,11 +548,10 @@ US from scratch with no effort at mitigation or containment
 	Results
 		Days to 0 infected: 366
 		Total recovered: 145078294
-		% of total population recovered: 0.449159
+		% of total population recovered: 44.9
 		Total Dead: 8303075
-		% of total population dead: 0.025706
-		% of infected dead: 0.054134
-		Time to run 810.704346
+		% of total population dead: 2.6
+		% of infected dead: 5.4
 
 US from scratch with social distancing on day 55
 	Notes on the model
@@ -556,10 +571,10 @@ US from scratch with social distancing on day 55
 		Results
 			Days to 0 infected: > 400
 			Total recovered: 4482901
-			% of total population recovered: 0.013879
+			% of total population recovered: 1.4
 			Total Dead: 92063
-			% of total population dead: 0.000285
-			% of infected dead: 0.020123
+			% of total population dead: 0.0285
+			% of infected dead: 2.0
 
 	US 0.08
 		Args
@@ -574,8 +589,8 @@ US from scratch with social distancing on day 55
 		Results
 			Days to 0 infected: 366
 			Total recovered: 16881016
-			% of total population recovered: 0.052263
+			% of total population recovered: 5.2
 			Total Dead: 345652
-			% of total population dead: 0.001070
-			% of infected dead: 0.020065
+			% of total population dead: 0.1070
+			% of infected dead: 2.0
 
