@@ -628,16 +628,16 @@ int main(
 	printf("Total recovered: %lld\n", TotalRecovered); 
 	printf(
 		"%% of total population recovered: %f\n", 
-		((float) TotalRecovered) / ((float) OriginalPop)
+		100.0f * ((float) TotalRecovered) / ((float) OriginalPop)
 	); 
 	printf("Total Dead: %lld\n", TotalDead); 
 	printf(
 		"%% of total population dead: %f\n",
-		((float) TotalDead) / ((float) OriginalPop)
+		100.0f * ((float) TotalDead) / ((float) OriginalPop)
 	);
 	printf(
 		"%% of infected dead: %f\n", 
-		((float) TotalDead) / ((float) (TotalRecovered + TotalDead))	
+		100.0f * ((float) TotalDead) / ((float) (TotalRecovered + TotalDead))	
 	);
 	printf("Time to run %f\n", SecondsElapsed);
 	fflush(stdout);
