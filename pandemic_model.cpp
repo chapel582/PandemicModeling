@@ -43,7 +43,7 @@ uint64_t Rand(uint64_t Mod)
 	return Result % Mod;
 }
 
-// NOTE: need randoms 0.0 < 1.0 
+// NOTE: need randoms between 0.0 and 1.0 
 float RandUnity()
 {
 	return ((float) (rand() % RAND_MAX)) / ((float) RAND_MAX);
@@ -167,7 +167,7 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 			TotalInfected++;
 
 			// NOTE: this is here to help with initialized infected having
-			// NOTE: probabilistic recovery instead of delay recovery
+			// CONT: probabilistic recovery instead of delay recovery
 			bool ShouldRecover;
 			if(Person->RecoverType == RecoverType_Probability)
 			{
@@ -183,7 +183,7 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 			{
 				float Value = RandUnity();
 				float DeathRate;
-				// NOTE: the 0.05 GlobalInfectedCount is based on New York's
+				// NOTE: the 0.05 * GlobalInfectedCount is based on New York's
 				// CONT: ratio between infected (~200000) to their ventilators
 				// CONT: (~10000) resulting in a higher fatality rate
 				// CONT: source https://www.usatoday.com/story/news/factcheck/2020/04/01/fact-check-does-new-york-have-stockpile-unneeded-ventilators/5097170002/
@@ -306,7 +306,7 @@ int main(
 
 	// NOTE: PARAMETERS
 	// NOTE: the average number of people encountered by a person each day in 
-	// NOTE: a way that would tranfer the virus. 
+	// CONT: a way that would tranfer the virus. 
 	// NOTE: fractional means that there's a chance the person doesn't get it
 	float EncounterRate = 0.25;
 	// NOTE: the average time in days to recover
@@ -317,7 +317,7 @@ int main(
 	float BelowCapacityDeathRate = 0.02f;
 	// NOTE: how many of the infected die when ventilators aren't available
 	// NOTE: this is based on NY's data as of April 15, 2020
-	// NOTE: 213779 cases and 11586 deaths
+	// CONT: 213779 cases and 11586 deaths
 	float AboveCapacityDeathRate = 0.055f;
 	// NOTE: ventilator estimate based on # in the US https://www.washingtonpost.com/health/2020/03/13/coronavirus-numbers-we-really-should-be-worried-about/
 	GlobalVentilatorCount = 170000;
@@ -332,7 +332,7 @@ int main(
 	// NOTE: Other arguments
 	uint32_t SimulationDays = 365;
 	// NOTE: The # of days you keep your immunity
-	// NOTE: By default, it's "infinite" by eing SimulationDays + 1
+	// NOTE: By default, it's "infinite", i.e. SimulationDays + 1
 	int DaysImmune = -1;
 	int MaxThreads = 4;
 	bool EndEarly = TRUE;
@@ -485,10 +485,9 @@ int main(
 		return 1;
 	}
 	
-	// NOTE: Susceptible and Infected need updates
 	// NOTE: currently People mem block is never freed 
-	// NOTE: this is an OK assumption since it's basically used until the death 
-	// NOTE: of the program
+	// CONT: this is an OK assumption since it's basically used until the death 
+	// CONT: of the program
 	person* People = (person*) malloc(OriginalPop * sizeof(person));
 	uint64_t PersonIndex;
 	for(PersonIndex = 0; PersonIndex < SusceptiblePop; PersonIndex++)
@@ -537,7 +536,6 @@ int main(
 		TotalDead = 0;
 		NewCases = 0;
 
-		// TODO: see if these loops need parallelization for large values
 		for(
 			PersonIndex = 0;
 			PersonIndex < OriginalPop;
@@ -547,7 +545,6 @@ int main(
 			person* Person = &People[PersonIndex]; 
 			if(Person->State != Person->NextState)
 			{
-				// TODO: track new cases here
 				Person->State = Person->NextState;
 				Person->NextState = Person->State;
 				Person->DaysInState = 0;
