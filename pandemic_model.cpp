@@ -224,7 +224,7 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 				if(Value < EncounterRateFractional)
 				{
 					person* RandomPerson;
-					bool RandomAlreadyPicked = false;
+					bool RandomAlreadyPicked = FALSE;
 					do
 					{
 						uint64_t RandomIndex = Rand(OriginalPop);
@@ -335,6 +335,7 @@ int main(
 	// NOTE: By default, it's "infinite" by eing SimulationDays + 1
 	int DaysImmune = -1;
 	int MaxThreads = 4;
+	bool EndEarly = TRUE;
 
 	// NOTE: handle command line arguments
 	bool SetDaysImmune = FALSE;
@@ -428,6 +429,10 @@ int main(
 			) == 0
 		)
 		{
+		}
+		else if(strcmp(Argv[ArgumentIndex], "--dontendearly") == 0)
+		{
+			EndEarly = FALSE;
 		}
 		else if(strcmp(Argv[ArgumentIndex], "--help") == 0)
 		{
@@ -608,7 +613,7 @@ int main(
 			TotalDead,
 			NewCases
 		);
-		if(TotalInfected == 0)
+		if(TotalInfected == 0 && EndEarly)
 		{
 			break;
 		}
@@ -620,12 +625,12 @@ int main(
 
 	float SecondsElapsed = GetSecondsElapsed(Start, End);
 	printf("Days to 0 infected: %u\n", Day + 1);
-	printf("Total recovered (from 4/15 onward): %lld\n", TotalRecovered); 
+	printf("Total recovered: %lld\n", TotalRecovered); 
 	printf(
 		"%% of total population recovered: %f\n", 
 		((float) TotalRecovered) / ((float) OriginalPop)
 	); 
-	printf("Total Dead (from 4/15 onward): %lld\n", TotalDead); 
+	printf("Total Dead: %lld\n", TotalDead); 
 	printf(
 		"%% of total population dead: %f\n",
 		((float) TotalDead) / ((float) OriginalPop)
