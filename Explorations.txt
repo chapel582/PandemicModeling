@@ -1,3 +1,9 @@
+NOTE: I eventually did a fit on Oregon's COVID19 deaths between it's first death
+and two weeks after its stay at home order started (March 23). It came to an 
+encounter rate of about 0.147, which was pretty close to my density based 
+estimate. Though of course, it would actually be worse than this. I used excel 
+for the exponential fit.  
+
 Questions to answer
 What would happen if we went back to normal, starting right now?
 	Notes on Model
