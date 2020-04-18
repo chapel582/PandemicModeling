@@ -46,7 +46,19 @@ What would happen if we went back to normal, starting right now?
 			Total Dead: 8571634
 			% of total population dead: 2.7
 			% of infected dead: 5.4
-		
+
+	US Model 2
+		Args
+			.\build\pandemic_model.exe --susceptible 322607393 --infected 392607 --recovered 214711 --dead 32914 --encounter 0.2192
+		Results
+			Days to 0 infected: 259
+			Total recovered: 135187334
+			% of total population recovered: 41.825859
+			Total Dead: 7753684
+			% of total population dead: 2.398926
+			% of infected dead: 5.424394
+			Time to run 564.403992
+
 	OR
 		Args
 			.\build\pandemic_model.exe --susceptible 4217737 --infected 897 --recovered 736 --encounter 0.11 --ventilators 10000
