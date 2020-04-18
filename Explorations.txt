@@ -1,4 +1,8 @@
-NOTE: I eventually did a fit on Oregon's COVID19 deaths between it's first death
+NOTE: 
+I eventually did my own fit on the US's deaths between it's first death and March
+21. It came to an encounter rate of about 0.2192, so my model's are probably a 
+little pessimistic when it comes to the # infected and the number of deaths.
+I eventually did a fit on Oregon's COVID19 deaths between it's first death
 and two weeks after its stay at home order started (March 23). It came to an 
 encounter rate of about 0.147, which was pretty close to my density based 
 estimate. Though of course, it would actually be worse than this. I used excel 
