@@ -636,3 +636,31 @@ US from scratch with social distancing on day 55
 			% of total population dead: 0.1070
 			% of infected dead: 2.0
 
+What would happen if we reduce the recovery time to 5 days by perfectly isolating 
+individuals as soon as they start showing symptoms?
+	Args
+		\build\pandemic_model.exe --susceptible 322607393 --infected 392607 --recovered 214711 --dead 32914 --encounter 0.2192 --dayssick 5
+	Results
+		Days to 0 infected: > 366
+		Total recovered: 26,477,629
+		% of total population recovered: 8.19
+		Total Dead: 569,864
+		% of total population dead: 0.18
+		% of infected dead: 2.1
+
+What would happen if we managed to have good contact tracing and removed individuals 
+before they started showing symptoms? Maybe, on average, after 4 days?
+	Notes on model
+		With a "normal life" encounter rate of 0.2192, then about one person is 
+		infected by a person every 5 days (not true as S / N grows smaller). They will 
+		have been infected, on average, by day 3. Thus, average of 4 days. 
+
+	Args
+		.\build\pandemic_model.exe --susceptible 322607393 --infected 392607 --recovered 214711 --dead 32914 --encounter 0.2192 --dayssick 4
+	Results
+		Days to 0 infected: 212
+		Total recovered: 2,522,684
+		% of total population recovered: 0.780498
+		Total Dead: 80,140
+		% of total population dead: 0.025
+		% of infected dead: 3.08
