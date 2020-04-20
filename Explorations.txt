@@ -564,7 +564,7 @@ immunity?
 			% of total population dead: 0.01
 			% of infected dead: 2.0
 
-US from scratch with no additiaonl effort at mitigation or containment
+US from scratch with no additional effort at mitigation or containment
 	Args
 		.\build\pandemic_model.exe --susceptible 329999999 --infected 1 --recovered 0 --encounter 0.2192
 	Results
@@ -638,6 +638,8 @@ US from scratch with social distancing on day 55
 
 What would happen if we reduce the recovery time to 5 days by perfectly isolating 
 individuals as soon as they start showing symptoms?
+	Notes on model
+		Source for 5 day incubation: https://time.com/5797300/coronavirus-incubation-period/
 	Args
 		\build\pandemic_model.exe --susceptible 322607393 --infected 392607 --recovered 214711 --dead 32914 --encounter 0.2192 --dayssick 5
 	Results
