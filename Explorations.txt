@@ -564,6 +564,17 @@ immunity?
 			% of total population dead: 0.01
 			% of infected dead: 2.0
 
+US from scratch with no additiaonl effort at mitigation or containment
+	Args
+		.\build\pandemic_model.exe --susceptible 329999999 --infected 1 --recovered 0 --encounter 0.2192
+	Results
+		Days to 0 infected: 362
+		Total recovered: 132828091
+		% of total population recovered: 40.250935
+		Total Dead: 7598311
+		% of total population dead: 2.302519
+		% of infected dead: 5.410885
+
 US from scratch with seasonal flu with no additional effort at mitigation or containment
 	Notes on Model
 		Seasonal flu is around 1.3  R_0 (reproductive rate)
@@ -577,18 +588,7 @@ US from scratch with seasonal flu with no additional effort at mitigation or con
 	Args
 		.\build\pandemic_model.exe --encounter 0.13 --dayssick 10 --susceptible 329999999 --abovedeath 0.001 --death 0.001
 	Results
-		Days to 0 infected: >365
-		Total recovered: 145078294
-		% of total population recovered: 44.9
-		Total Dead: 8303075
-		% of total population dead: 2.6
-		% of infected dead: 5.4
-
-Compared to a moderately bad flu season
-	Args
-
-	Results
-		Days to 0 infected: 366
+		Days to 0 infected: >366
 		Total recovered: 45703783
 		% of total population recovered: 13.849631
 		Total Dead: 47263
