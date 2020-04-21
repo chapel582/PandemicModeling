@@ -490,6 +490,17 @@ int main(
 		}
 		else if(
 			ParseArg(
+				"%f",
+				Argv,
+				ArgumentIndex,
+				"--symptomaticchance",
+				&GlobalSymptomaticChance
+			) == 0
+		)
+		{
+		}
+		else if(
+			ParseArg(
 				"%u",
 				Argv,
 				ArgumentIndex,
@@ -546,6 +557,10 @@ int main(
 			printf("--removeknowninfections\n");
 			printf(
 				"\tWhether or not to remove symptomatic individuals and their infected contacts early. Default FALSE\n" 
+			);
+			printf("--symptomaticchance <symptomaticchance>\n");
+			printf(
+				"\tThe likelihood that someone exhibits symptoms. Default 0.12\n" 
 			);
 			return 0;
 		}
