@@ -8,15 +8,6 @@ encounter rate of about 0.147, which was pretty close to my density based
 estimate. Though of course, it would actually be worse than this. I used excel 
 for the exponential fit.  
 
-NOTE ON PARAMETER ESTIMATION:
-If you're interested in estimating the new encounter rate after your region's 
-stay-at-home order, you can take the raw data (maybe two weeks after the order 
-started), you can use the following equation on a particular day, and then maybe 
-average it over multiple days.
-(EncounterRate * (SusceptiblePop / TotalPop) - RecoveryRate) InfectedPop = ChangeInInfectedPop
-Solve for EncounterRate, average over a few days
-
-
 Questions to answer
 What would happen if we went back to normal, starting right now?
 	Notes on Model
@@ -759,3 +750,38 @@ Try raising the symptomatic chance
 			% of total population dead: 0.305610
 			% of infected dead: 2.018399
 			Average days infected 4.757245
+
+How long would it take for the virus to die out WITH the current implementation of 
+the stay at home order?
+NOTE ON PARAMETER ESTIMATION:
+If you're interested in estimating the new encounter rate after your region's 
+stay-at-home order, you can take the raw data (maybe two weeks after the order 
+started), you can use the following equation on a particular day, and then maybe 
+average it over multiple days.
+(EncounterRate * (SusceptiblePop / TotalPop) - RecoveryRate) InfectedPop = ChangeInInfectedPop
+EncounterRate = ((ChangeInInfectedPop / InfectedPop) + RecoveryRate) / (SusceptiblePop/TotalPop)
+Solve for EncounterRate, average over a few days
+Using this method (averaging over 7 days), oregon started with an average encounter rate of 0.21
+And ended with an average encounter rate of 0.05, so a full quarantine could be an approximately 4x reduction in the encounter rate. 
+	
+	Model 1 US
+		Args
+			.\build\pandemic_model.exe --susceptible 322607393 --infected 392607 --recovered 214711 --encounter 0.0548 --simdays 1000
+		Results
+			Days to 0 infected: 366
+			Total recovered: 1743046
+			% of total population recovered: 0.539284
+			Total Dead: 31512
+			% of total population dead: 0.009750
+			% of infected dead: 1.775766
+	Model 2 Oregon
+		Args
+			.\build\pandemic_model.exe --susceptible 4217737 --infected 897 --recovered 736 --encounter 0.03675 --ventilators 10000
+		Results
+			Days to 0 infected: 133
+			Total recovered: 2518
+			% of total population recovered: 0.059677
+			Total Dead: 29
+			% of total population dead: 0.000687
+			% of infected dead: 1.138594
+			Time to run 2.659680
