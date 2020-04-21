@@ -666,3 +666,35 @@ before they started showing symptoms? Maybe, on average, after 4 days?
 		Total Dead: 80,140
 		% of total population dead: 0.025
 		% of infected dead: 3.08
+
+
+What would happen if people were removed from the susceptible pool as soon as 
+they knew that they were infected? 
+	Notes on the model:
+		Assumes asymptomatic people don't know they are infected unless they are
+		contacted by someone else who was either contacted or symptomatic. Also 
+		sets the symptomatic value to just 12%, based on this source
+		https://www.washingtonpost.com/outlook/2020/04/20/we-tested-all-our-patients-covid-19-found-lots-asymptomatic-cases/
+
+		Had to use a smaller population for timing
+
+	Args
+		.\build\pandemic_model.exe --removeknowninfections --encounter 0.2192 --susceptible 10000000
+	Results
+		Days to 0 infected: 217
+		Total recovered: 8633501
+		% of total population recovered: 86.334999
+		Total Dead: 299703
+		% of total population dead: 2.997030
+		% of infected dead: 3.4
+
+	Compared to 
+		Args
+			.\build\pandemic_model.exe --encounter 0.2192 --susceptible 10000000
+		Results
+			Days to 0 infected: 207
+			Total recovered: 8958402
+			% of total population recovered: 89.584007
+			Total Dead: 383744
+			% of total population dead: 3.837440
+			% of infected dead: 4.107664

@@ -216,8 +216,7 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 				(
 					(
 						Person->Symptomatic && (
-							Person->DaysInState > 
-							GlobalIncubationDays
+							Person->DaysInState > GlobalIncubationDays
 						)
 					) || 
 					Person->Contacted // NOTE: assumes perfect testing!
