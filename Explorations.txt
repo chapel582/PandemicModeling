@@ -703,7 +703,9 @@ Try raising the symptomatic chance
 	Notes on model
 		Other figures suggest a higher rate of exhibiting symptoms than 0.12
 		Start with an infected population b/c that's where we're at now as of 
-		mid April
+		mid April. 
+		Alternative symptomatic figures based on numbers from
+			https://ethics.harvard.edu/covid-roadmap
 	Model 1 (no removal)
 		Args
 			.\build\pandemic_model.exe --encounter 0.2192 --susceptible 9900000 --infected 100000 
