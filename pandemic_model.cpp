@@ -549,6 +549,10 @@ int main(
 		ReproductiveRateInt += 1;
 	}
 
+#ifdef INIT_PERF_TEST
+	LARGE_INTEGER StartInit = GetWallClock();
+#endif
+
 	// NOTE: currently People mem block is never freed 
 	// CONT: this is an OK assumption since it's basically used until the death 
 	// CONT: of the program
@@ -575,6 +579,11 @@ int main(
 			Person, State_Recovered, RecoverType_Delay, ReproductiveRateInt
 		);
 	}
+
+#ifdef INIT_PERF_TEST
+	float TimeInit = GetSecondsElapsed(StartInit, GetWallClock());
+	printf("Time to init: %f\n", TimeInit);
+#endif 
 
 	// NOTE: These also never get deallocated. No need
 	HANDLE* ThreadHandles = (HANDLE*) malloc(MaxThreads * sizeof(HANDLE));
