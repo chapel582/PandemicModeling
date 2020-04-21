@@ -8,6 +8,12 @@
 int64_t GlobalPerformanceFrequency;
 uint64_t GlobalInfectedCount;
 uint64_t GlobalVentilatorCount; 
+// NOTE: an option for removing an individual and their first-degree 
+// NOTE: infected contacts once they show symptoms
+bool GlobalSymptomaticRemoval = FALSE;
+// NOTE: number of days they are in the incubation period
+uint32_t GlobalIncubationDays = 5;
+float GlobalSymptomaticChance = 0.12f;
 
 // NOTE: Performance inspection stuff
 inline LARGE_INTEGER GetWallClock(void)
@@ -87,20 +93,36 @@ typedef enum state
 	State_Dead
 } state;
 
+struct person;
 typedef struct person
 {
 	state State;
 	state NextState;
 	recover_type RecoverType;
-	int DaysInState;
+	uint8_t DaysInState; 
+	uint8_t ContactIndex;
+	uint8_t Symptomatic;
+	uint8_t Contacted;
+	struct person** Contacts;
 } person;
 
-void InitPerson(person* Person, state State, recover_type RecoverType)
+void InitPerson(
+	person* Person,
+	state State,
+	recover_type RecoverType,
+	int ReproductiveRate
+)
 {
 	Person->State = State;
 	Person->NextState = State;
 	Person->RecoverType = RecoverType;
 	Person->DaysInState = 0;
+	Person->Symptomatic = 0;
+	Person->Contacted = 0; 
+	size_t ContactArraySize = 4 * ReproductiveRate * sizeof(person*);
+	Person->Contacts = (person**) malloc(ContactArraySize);
+	memset(Person->Contacts, 0, ContactArraySize);
+	Person->ContactIndex = 0;
 }
 
 typedef struct set_next_state_data
@@ -172,11 +194,35 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 			if(Person->RecoverType == RecoverType_Probability)
 			{
 				float RecoverCheck = RandUnity();
-				ShouldRecover = RecoverCheck < (1.0f / float(DaysSick));	
+				ShouldRecover = RecoverCheck < (1.0f / float(DaysSick));
 			}
 			else
 			{
 				ShouldRecover = Person->DaysInState > DaysSick;
+			}
+
+			if(Person->Contacted > 0 && GlobalSymptomaticRemoval)
+			{
+				ShouldRecover = TRUE;
+			}
+			// NOTE: If the person is symptomatic and we're simulating removing 
+			// CONT: symptomatic individuals, we should remove them here
+			else if(
+				(Person->Symptomatic) && 
+				(GlobalSymptomaticRemoval) &&
+				(Person->DaysInState > GlobalIncubationDays)
+			)
+			{
+				ShouldRecover = TRUE;
+				for(
+					int ContactIndex = 0;
+					ContactIndex < Person->ContactIndex;
+					ContactIndex++
+				)
+				{
+					person* PersonToContact = Person->Contacts[ContactIndex];
+					PersonToContact->Contacted = TRUE;
+				}
 			}
 
 			if(ShouldRecover)
@@ -206,7 +252,7 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 				}
 			}
 			else
-			{					
+			{
 				int LivingFound = 0;
 				while(LivingFound < EncounterRateInt)
 				{
@@ -220,8 +266,7 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 					}
 				}
 
-				float Value = RandUnity();
-				if(Value < EncounterRateFractional)
+				if(RandUnity() < EncounterRateFractional)
 				{
 					person* RandomPerson;
 					bool RandomAlreadyPicked = FALSE;
@@ -262,7 +307,12 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 					person* PersonToInfect = ToInfect[ToInfectIndex];
 					if(PersonToInfect->State == State_Susceptible)
 					{
-						PersonToInfect->NextState = State_Infected;							
+						PersonToInfect->NextState = State_Infected;
+						PersonToInfect->Symptomatic = (
+							RandUnity() < GlobalSymptomaticChance
+						);
+						Person->Contacts[Person->ContactIndex] = PersonToInfect;
+						Person->ContactIndex++;
 					}
 				}
 			}
@@ -434,6 +484,10 @@ int main(
 		{
 			EndEarly = FALSE;
 		}
+		else if(strcmp(Argv[ArgumentIndex], "--removesymptomatic") == 0)
+		{
+			GlobalSymptomaticRemoval = TRUE;
+		}
 		else if(strcmp(Argv[ArgumentIndex], "--help") == 0)
 		{
 			printf("--encounter <encounter>\n");
@@ -470,6 +524,10 @@ int main(
 			printf(
 				"\tInt. Number of ventilators available. Default: 170000"
 			);
+			printf("--removesymptomatic\n");
+			printf(
+				"\tWhether or not to remove symptomatic individuals and their first order contacts. Default: FALSE"
+			);
 			return 0;
 		}
 	}
@@ -484,7 +542,13 @@ int main(
 		printf("DaysImmune is somehow less than 0\n");
 		return 1;
 	}
-	
+	float ReproductiveRate = EncounterRate / (1.0f / ((float) DaysSick));
+	int ReproductiveRateInt = (int) ReproductiveRate;
+	if(ReproductiveRateInt == 0)
+	{
+		ReproductiveRateInt += 1;
+	}
+
 	// NOTE: currently People mem block is never freed 
 	// CONT: this is an OK assumption since it's basically used until the death 
 	// CONT: of the program
@@ -493,17 +557,23 @@ int main(
 	for(PersonIndex = 0; PersonIndex < SusceptiblePop; PersonIndex++)
 	{
 		person* Person = &People[PersonIndex];
-		InitPerson(Person, State_Susceptible, RecoverType_Delay);
+		InitPerson(
+			Person, State_Susceptible, RecoverType_Delay, ReproductiveRateInt
+		);
 	}
 	for(; PersonIndex < (SusceptiblePop + InfectedPop); PersonIndex++)
 	{
 		person* Person = &People[PersonIndex];
-		InitPerson(Person, State_Infected, RecoverType_Probability);
+		InitPerson(
+			Person, State_Infected, RecoverType_Probability, ReproductiveRateInt
+		);
 	}
 	for(; PersonIndex < OriginalPop; PersonIndex++)
 	{
 		person* Person = &People[PersonIndex];
-		InitPerson(Person, State_Recovered, RecoverType_Delay);	
+		InitPerson(
+			Person, State_Recovered, RecoverType_Delay, ReproductiveRateInt
+		);
 	}
 
 	// NOTE: These also never get deallocated. No need
