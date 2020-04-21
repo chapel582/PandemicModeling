@@ -9,11 +9,14 @@ int64_t GlobalPerformanceFrequency;
 uint64_t GlobalInfectedCount;
 uint64_t GlobalVentilatorCount; 
 // NOTE: an option for removing an individual and their first-degree 
-// NOTE: infected contacts once they show symptoms
+// CONT: infected contacts once they show symptoms
 bool GlobalShouldRemoveKnown = FALSE;
 // NOTE: number of days they are in the incubation period
 uint32_t GlobalIncubationDays = 5;
 float GlobalSymptomaticChance = 0.12f;
+// NOTE: this is for tracking the average days to recover if
+// CONT: ShouldRemoveKnown is TRUE
+uint64_t GlobalSumDaysToRecover = 0;
 
 // NOTE: Performance inspection stuff
 inline LARGE_INTEGER GetWallClock(void)
@@ -237,6 +240,9 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 
 			if(ShouldRecover)
 			{
+				WaitForSingleObject(Args->TotalsMutex, INFINITE);	
+				GlobalSumDaysToRecover += Person->DaysInState - 1;
+				ReleaseMutex(Args->TotalsMutex);
 				float Value = RandUnity();
 				float DeathRate;
 				// NOTE: the 0.05 * GlobalInfectedCount is based on New York's
@@ -727,6 +733,10 @@ int main(
 	printf(
 		"%% of infected dead: %f\n", 
 		100.0f * ((float) TotalDead) / ((float) (TotalRecovered + TotalDead))	
+	);
+	printf(
+		"Average days infected %f\n",
+		(double) GlobalSumDaysToRecover / (double) TotalRecovered
 	);
 	printf("Time to run %f\n", SecondsElapsed);
 	fflush(stdout);
