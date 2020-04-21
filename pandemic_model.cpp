@@ -10,7 +10,7 @@ uint64_t GlobalInfectedCount;
 uint64_t GlobalVentilatorCount; 
 // NOTE: an option for removing an individual and their first-degree 
 // NOTE: infected contacts once they show symptoms
-bool GlobalSymptomaticRemoval = FALSE;
+bool GlobalShouldRemoveKnown = FALSE;
 // NOTE: number of days they are in the incubation period
 uint32_t GlobalIncubationDays = 5;
 float GlobalSymptomaticChance = 0.12f;
@@ -120,9 +120,11 @@ void InitPerson(
 	Person->Symptomatic = 0;
 	Person->Contacted = 0; 
 	size_t ContactArraySize = 4 * ReproductiveRate * sizeof(person*);
-	Person->Contacts = (person**) malloc(ContactArraySize);
-	memset(Person->Contacts, 0, ContactArraySize);
-	Person->ContactIndex = 0;
+	if(GlobalShouldRemoveKnown)
+	{
+		Person->Contacts = (person**) malloc(ContactArraySize);
+		Person->ContactIndex = 0;
+	}
 }
 
 typedef struct set_next_state_data
@@ -201,16 +203,25 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 				ShouldRecover = Person->DaysInState > DaysSick;
 			}
 
-			if(Person->Contacted > 0 && GlobalSymptomaticRemoval)
+			if(Person->Contacted > 0 && GlobalShouldRemoveKnown)
 			{
 				ShouldRecover = TRUE;
 			}
 			// NOTE: If the person is symptomatic and we're simulating removing 
 			// CONT: symptomatic individuals, we should remove them here
-			else if(
-				(Person->Symptomatic) && 
-				(GlobalSymptomaticRemoval) &&
-				(Person->DaysInState > GlobalIncubationDays)
+			// NOTE: the reason this is not an else if to the above statement is
+			// CONT: that we the contacted people with symptoms to contact others
+			if(
+				(GlobalShouldRemoveKnown) &&
+				(
+					(
+						Person->Symptomatic && (
+							Person->DaysInState > 
+							GlobalIncubationDays
+						)
+					) || 
+					Person->Contacted // NOTE: assumes perfect testing!
+				)
 			)
 			{
 				ShouldRecover = TRUE;
@@ -308,11 +319,14 @@ DWORD WINAPI SetNextState(LPVOID LpParameter)
 					if(PersonToInfect->State == State_Susceptible)
 					{
 						PersonToInfect->NextState = State_Infected;
-						PersonToInfect->Symptomatic = (
-							RandUnity() < GlobalSymptomaticChance
-						);
-						Person->Contacts[Person->ContactIndex] = PersonToInfect;
-						Person->ContactIndex++;
+						if(GlobalShouldRemoveKnown)
+						{
+							PersonToInfect->Symptomatic = (
+								RandUnity() < GlobalSymptomaticChance
+							);
+							Person->Contacts[Person->ContactIndex] = PersonToInfect;
+							Person->ContactIndex++;
+						}
 					}
 				}
 			}
@@ -484,9 +498,9 @@ int main(
 		{
 			EndEarly = FALSE;
 		}
-		else if(strcmp(Argv[ArgumentIndex], "--removesymptomatic") == 0)
+		else if(strcmp(Argv[ArgumentIndex], "--removeknowninfections") == 0)
 		{
-			GlobalSymptomaticRemoval = TRUE;
+			GlobalShouldRemoveKnown = TRUE;
 		}
 		else if(strcmp(Argv[ArgumentIndex], "--help") == 0)
 		{
@@ -522,11 +536,11 @@ int main(
 			);
 			printf("--ventilators <ventilators>\n");
 			printf(
-				"\tInt. Number of ventilators available. Default: 170000"
+				"\tInt. Number of ventilators available. Default: 170000\n"
 			);
-			printf("--removesymptomatic\n");
+			printf("--removeknowninfections\n");
 			printf(
-				"\tWhether or not to remove symptomatic individuals and their first order contacts. Default: FALSE"
+				"\tWhether or not to remove symptomatic individuals and their infected contacts early. Default FALSE\n" 
 			);
 			return 0;
 		}
