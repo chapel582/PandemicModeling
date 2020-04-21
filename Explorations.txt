@@ -8,6 +8,15 @@ encounter rate of about 0.147, which was pretty close to my density based
 estimate. Though of course, it would actually be worse than this. I used excel 
 for the exponential fit.  
 
+NOTE ON PARAMETER ESTIMATION:
+If you're interested in estimating the new encounter rate after your region's 
+stay-at-home order, you can take the raw data (maybe two weeks after the order 
+started), you can use the following equation on a particular day, and then maybe 
+average it over multiple days.
+(EncounterRate * (SusceptiblePop / TotalPop) - RecoveryRate) InfectedPop = ChangeInInfectedPop
+Solve for EncounterRate, average over a few days
+
+
 Questions to answer
 What would happen if we went back to normal, starting right now?
 	Notes on Model
