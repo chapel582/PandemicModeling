@@ -15,5 +15,5 @@ echo %FinalFlags%
 IF NOT EXIST %BuildFolder% mkdir %BuildFolder%
 pushd %BuildFolder%
 del *.pdb > nul 2> nul
-cl %CommonCompilerFlags% ..\pandemic_model.cpp -Fpandemic_model.map /link %CommonLinkerFlags%
+cl %CommonCompilerFlags% ..\pandemic_model.cpp /link %CommonLinkerFlags%
 popd
